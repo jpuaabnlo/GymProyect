@@ -1,0 +1,1 @@
+GymApp is a native Android application built with Kotlin and Jetpack Compose to streamline gym operations. It features a role-based system (Client, Coach, Admin) that allows users to manage memberships, assign personalized workout routines for premium accounts, sell products, and efficiently keep track of payment periods.
