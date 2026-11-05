@@ -110,7 +110,6 @@ fun AdminStoreScreen(
             }
         }
 
-        // Carrito y método de pago
         item {
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Card(
@@ -153,7 +152,6 @@ fun AdminStoreScreen(
             }
         }
 
-        // Historial de ventas
         item {
             Text(
                 text = "Ventas recientes (${uiState.ventas.size})",

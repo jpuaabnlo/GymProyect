@@ -8,7 +8,7 @@ data class ProductEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val nombre: String,
-    val categoria: String, // "Suplementos", "Bebidas", "Accesorios"
+    val categoria: String,
     val precio: Double,
     val stock: Int
 )

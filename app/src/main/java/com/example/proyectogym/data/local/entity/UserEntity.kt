@@ -11,9 +11,9 @@ data class UserEntity(
     val email: String,
     val password: String,
     val telefono: String,
-    val rol: String, // "CLIENTE", "ENTRENADOR", "ADMIN"
+    val rol: String,
     val objetivo: String = "",
     val horarioHabitual: String = "No definido",
-    val fechaAlta: String = "2026-10-01",
+    val fechaAlta: String = "",
     val coachId: Int? = null
 )

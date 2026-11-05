@@ -79,7 +79,6 @@ fun ClientHomeScreen(
             }
         }
 
-        // Tarjeta de Membresía
         item {
             val membresia = uiState.membresiaActual
             Card(
@@ -129,7 +128,6 @@ fun ClientHomeScreen(
             }
         }
 
-        // Tarjeta Resumen de Rutina
         item {
             val rutina = uiState.rutinaActiva
             val completados = uiState.ejerciciosRutina.count { it.completado }
@@ -164,7 +162,6 @@ fun ClientHomeScreen(
             }
         }
 
-        // Resumen rápido de constancia
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(

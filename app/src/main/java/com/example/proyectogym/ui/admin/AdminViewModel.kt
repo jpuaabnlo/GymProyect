@@ -27,7 +27,6 @@ data class AdminUiState(
     val asistencias: List<AttendanceEntity> = emptyList(),
     val productos: List<ProductEntity> = emptyList(),
     val ventas: List<SaleEntity> = emptyList(),
-    // Carrito del punto de venta: productId -> cantidad
     val carrito: Map<Int, Int> = emptyMap(),
     val metodoPagoTienda: String = "EFECTIVO",
     val mensajeFeedback: String? = null
@@ -79,7 +78,6 @@ class AdminViewModel(
         _uiState.update { it.copy(mensajeFeedback = null) }
     }
 
-    // --- Tablero: Asistencia manual ---
     fun registrarAsistenciaManual(usuario: UserEntity, servicioNombre: String) {
         val ahora = Date()
         val fechaStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(ahora)
@@ -102,7 +100,6 @@ class AdminViewModel(
         }
     }
 
-    // --- Cobrar Membresía / Reinscripción / Visita ---
     fun cobrarServicio(
         cliente: UserEntity,
         servicio: ServiceEntity,
@@ -139,7 +136,6 @@ class AdminViewModel(
         }
     }
 
-    // --- Tienda POS ---
     fun onMetodoPagoTiendaChange(metodo: String) {
         _uiState.update { it.copy(metodoPagoTienda = metodo) }
     }
@@ -204,7 +200,6 @@ class AdminViewModel(
         }
     }
 
-    // --- Gestión CRUD: Usuarios ---
     fun guardarUsuario(
         idExistente: Int?,
         nombre: String,
@@ -259,7 +254,6 @@ class AdminViewModel(
         }
     }
 
-    // --- Gestión CRUD: Servicios ---
     fun guardarServicio(
         idExistente: Int?,
         nombre: String,
@@ -295,7 +289,6 @@ class AdminViewModel(
         }
     }
 
-    // --- Gestión CRUD: Productos ---
     fun guardarProducto(
         idExistente: Int?,
         nombre: String,

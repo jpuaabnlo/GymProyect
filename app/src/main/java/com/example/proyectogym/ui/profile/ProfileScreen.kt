@@ -136,7 +136,7 @@ fun ProfileScreen(
                     onClick = { viewModel.agregarFotoMultimediaReferencia("Foto actualizada de ${uiState.nombre}") },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Foto Multimedia (${uiState.archivosMultimedia.size})")
+                    Text("Agregar foto (${uiState.archivosMultimedia.size})")
                 }
             }
         }
@@ -144,7 +144,7 @@ fun ProfileScreen(
         item {
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Text(
-                text = "Configurar recordatorio (Notificaciones)",
+                text = "Recordatorio de entrenamiento",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

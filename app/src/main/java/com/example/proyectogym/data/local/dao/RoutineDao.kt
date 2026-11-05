@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RoutineDao {
-    // --- Rutinas ---
     @Query("SELECT * FROM routines ORDER BY id DESC")
     fun observeAllRoutines(): Flow<List<RoutineEntity>>
 
@@ -35,7 +34,6 @@ interface RoutineDao {
     @Delete
     suspend fun deleteRoutine(routine: RoutineEntity)
 
-    // --- Ejercicios de la rutina ---
     @Query("SELECT * FROM routine_exercises WHERE routineId = :routineId ORDER BY id ASC")
     fun observeExercisesForRoutine(routineId: Int): Flow<List<RoutineExerciseEntity>>
 
@@ -54,7 +52,6 @@ interface RoutineDao {
     @Query("DELETE FROM routine_exercises WHERE routineId = :routineId")
     suspend fun deleteExercisesByRoutineId(routineId: Int)
 
-    // --- Notas / Registros de Progreso (CRUD completo) ---
     @Query("SELECT * FROM progress_notes WHERE userId = :userId ORDER BY id DESC")
     fun observeProgressNotesByUser(userId: Int): Flow<List<ProgressNoteEntity>>
 

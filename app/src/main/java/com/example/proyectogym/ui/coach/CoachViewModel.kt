@@ -27,7 +27,6 @@ data class CoachUiState(
     val clienteSeleccionado: UserEntity? = null,
     val progresoClienteSeleccionado: List<ProgressNoteEntity> = emptyList(),
     val asistenciasClienteSeleccionado: List<AttendanceEntity> = emptyList(),
-    // Estado temporal para crear o editar una rutina
     val editRoutineId: Int? = null,
     val editNombreRutina: String = "",
     val editObjetivo: String = "Fuerza",
@@ -111,16 +110,7 @@ class CoachViewModel(
                 editObjetivo = "Fuerza",
                 editDiasSeleccionados = setOf("Lun", "Mié", "Vie"),
                 editClienteAsignadoId = primerCliente?.id,
-                editEjercicios = listOf(
-                    RoutineExerciseEntity(
-                        routineId = 0,
-                        nombre = "Press de Banca",
-                        grupoMuscular = "Pecho",
-                        series = 4,
-                        repeticiones = 10,
-                        pesoSugeridoKg = 40.0
-                    )
-                ),
+                editEjercicios = emptyList(),
                 mensajeFeedback = null
             )
         }
@@ -226,7 +216,6 @@ class CoachViewModel(
 
             gymRepository.replaceRoutineExercises(idFinal, state.editEjercicios)
 
-            // Dejamos registro listo en la tabla de Notificaciones para el cliente asignado
             if (cliente != null) {
                 val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                 gymRepository.insertNotification(

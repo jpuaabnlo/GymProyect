@@ -11,6 +11,6 @@ data class RoutineEntity(
     val clienteId: Int? = null,
     val clienteNombre: String = "Sin asignar",
     val nombre: String,
-    val objetivo: String, // "Fuerza", "Hipertrofia", "Resistencia", "Pérdida de grasa"
-    val diasSemana: String // Ej. "Lun, Mié, Vie"
+    val objetivo: String,
+    val diasSemana: String
 )

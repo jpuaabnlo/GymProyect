@@ -12,9 +12,9 @@ data class MembershipEntity(
     val serviceId: Int,
     val servicioNombre: String,
     val montoPagado: Double,
-    val metodoPago: String, // "EFECTIVO", "TARJETA", "TRANSFERENCIA"
+    val metodoPago: String,
     val fechaInicio: String,
     val fechaVencimiento: String,
     val diasRestantes: Int,
-    val estado: String // "ACTIVA", "POR_VENCER", "VENCIDA"
+    val estado: String
 )

@@ -13,14 +13,9 @@ import com.example.proyectogym.data.local.entity.ServiceEntity
 import com.example.proyectogym.data.local.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Interfaz del Repositorio Local (estilo Codelab Inventory de Android Developers).
- * Abstrae todas las operaciones con la base de datos SQLite (Room).
- */
 interface GymRepository {
-    suspend fun seedInitialDataIfEmpty()
+    suspend fun syncFromRemote()
 
-    // Usuarios y Autenticación
     suspend fun login(email: String, password: String): UserEntity?
     fun observeUserById(id: Int): Flow<UserEntity?>
     suspend fun getUserById(id: Int): UserEntity?
@@ -31,7 +26,6 @@ interface GymRepository {
     suspend fun updateUser(user: UserEntity)
     suspend fun deleteUser(user: UserEntity)
 
-    // Servicios, Membresías y Asistencias
     fun observeAllServices(): Flow<List<ServiceEntity>>
     suspend fun insertService(service: ServiceEntity): Long
     suspend fun updateService(service: ServiceEntity)
@@ -47,7 +41,6 @@ interface GymRepository {
     fun observeAllAttendances(): Flow<List<AttendanceEntity>>
     suspend fun insertAttendance(attendance: AttendanceEntity): Long
 
-    // Rutinas, Ejercicios y Notas de Progreso
     fun observeAllRoutines(): Flow<List<RoutineEntity>>
     fun observeRoutinesByCoach(coachId: Int): Flow<List<RoutineEntity>>
     fun observeActiveRoutineForClient(clienteId: Int): Flow<RoutineEntity?>
@@ -68,7 +61,6 @@ interface GymRepository {
     suspend fun updateProgressNote(note: ProgressNoteEntity)
     suspend fun deleteProgressNote(note: ProgressNoteEntity)
 
-    // Tienda (Productos y Ventas)
     fun observeAllProducts(): Flow<List<ProductEntity>>
     suspend fun insertProduct(product: ProductEntity): Long
     suspend fun updateProduct(product: ProductEntity)
@@ -77,7 +69,6 @@ interface GymRepository {
     fun observeAllSales(): Flow<List<SaleEntity>>
     suspend fun insertSale(sale: SaleEntity): Long
 
-    // Notificaciones y Multimedia
     fun observeNotificationsByUser(userId: Int): Flow<List<NotificationEntity>>
     suspend fun insertNotification(notification: NotificationEntity): Long
     suspend fun updateNotification(notification: NotificationEntity)

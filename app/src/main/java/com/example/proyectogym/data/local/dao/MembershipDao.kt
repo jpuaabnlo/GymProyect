@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MembershipDao {
-    // --- Servicios ---
     @Query("SELECT * FROM services ORDER BY nombre ASC")
     fun observeAllServices(): Flow<List<ServiceEntity>>
 
@@ -26,7 +25,6 @@ interface MembershipDao {
     @Delete
     suspend fun deleteService(service: ServiceEntity)
 
-    // --- Membresías / Reinscripciones ---
     @Query("SELECT * FROM memberships ORDER BY diasRestantes ASC")
     fun observeAllMemberships(): Flow<List<MembershipEntity>>
 
@@ -42,7 +40,6 @@ interface MembershipDao {
     @Delete
     suspend fun deleteMembership(membership: MembershipEntity)
 
-    // --- Asistencias ---
     @Query("SELECT * FROM attendances WHERE userId = :userId ORDER BY id DESC")
     fun observeAttendancesByUser(userId: Int): Flow<List<AttendanceEntity>>
 

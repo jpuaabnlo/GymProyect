@@ -90,7 +90,6 @@ fun RoutineEditorScreen(
             )
         }
 
-        // Selección de objetivo con RadioButton (Criterio de UI)
         item {
             Text(
                 text = "Objetivo principal:",
@@ -110,7 +109,6 @@ fun RoutineEditorScreen(
             }
         }
 
-        // Selección de días con FilterChip
         item {
             Text(
                 text = "Días de entrenamiento:",
@@ -130,7 +128,6 @@ fun RoutineEditorScreen(
             }
         }
 
-        // Asignar cliente con RadioButton
         item {
             Text(
                 text = "Asignar a cliente:",
@@ -150,7 +147,6 @@ fun RoutineEditorScreen(
             }
         }
 
-        // Lista de ejercicios de la rutina
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),

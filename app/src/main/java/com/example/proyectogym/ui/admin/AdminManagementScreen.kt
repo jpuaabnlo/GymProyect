@@ -43,7 +43,6 @@ fun AdminManagementScreen(
     var pestanaActual by remember { mutableIntStateOf(0) }
     val titulos = listOf("Usuarios", "Servicios", "Productos")
 
-    // Estado de diálogos CRUD
     var mostrarDialogoUsuario by remember { mutableStateOf(false) }
     var usuarioEdit by remember { mutableStateOf<UserEntity?>(null) }
     var uNombre by remember { mutableStateOf("") }
@@ -101,7 +100,7 @@ fun AdminManagementScreen(
                                 usuarioEdit = null
                                 uNombre = ""
                                 uEmail = ""
-                                uPass = "1234"
+                                uPass = ""
                                 uTel = ""
                                 uRol = "CLIENTE"
                                 mostrarDialogoUsuario = true
@@ -157,7 +156,7 @@ fun AdminManagementScreen(
                                 sTipo = "MENSUAL"
                                 sPrecio = ""
                                 sDias = "30"
-                                sHorario = "06:00 - 22:00"
+                                sHorario = ""
                                 mostrarDialogoServicio = true
                             }) {
                                 Text("+ Nuevo")

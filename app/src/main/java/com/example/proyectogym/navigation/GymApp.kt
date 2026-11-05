@@ -35,10 +35,6 @@ import com.example.proyectogym.ui.coach.CoachViewModel
 import com.example.proyectogym.ui.coach.RoutineEditorScreen
 import com.example.proyectogym.ui.profile.ProfileScreen
 
-/**
- * Grafo principal de navegación (NavHost raíz):
- * Login -> Contenedor principal adaptado al rol autenticado (CLIENTE, ENTRENADOR, ADMIN).
- */
 @Composable
 fun GymApp() {
     val rootNavController = rememberNavController()
@@ -92,7 +88,6 @@ fun RoleMainScreen(
     val itemsMenu = BottomNavItem.menuPorRol(rol)
     val startDestination = itemsMenu.first().route
 
-    // ViewModels compartidos dentro de la sesión del rol actual
     val clientViewModel: ClientViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val coachViewModel: CoachViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val adminViewModel: AdminViewModel = viewModel(factory = AppViewModelProvider.Factory)
@@ -127,7 +122,6 @@ fun RoleMainScreen(
             startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // --- Pantallas de Cliente ---
             composable(BottomNavItem.ClienteInicio.route) {
                 ClientHomeScreen(
                     userId = userId,
@@ -156,7 +150,6 @@ fun RoleMainScreen(
                 )
             }
 
-            // --- Pantallas de Entrenador ---
             composable(BottomNavItem.CoachClientes.route) {
                 CoachClientsScreen(
                     coachId = userId,
@@ -182,7 +175,6 @@ fun RoleMainScreen(
                 )
             }
 
-            // --- Pantallas de Administrador ---
             composable(BottomNavItem.AdminTablero.route) {
                 AdminDashboardScreen(viewModel = adminViewModel)
             }
@@ -199,7 +191,6 @@ fun RoleMainScreen(
                 AdminManagementScreen(viewModel = adminViewModel)
             }
 
-            // --- Pantalla común de Perfil ---
             composable(BottomNavItem.Perfil.route) {
                 ProfileScreen(
                     userId = userId,

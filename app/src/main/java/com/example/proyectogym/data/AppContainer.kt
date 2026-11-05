@@ -10,13 +10,6 @@ import com.example.proyectogym.data.repository.RemoteGymRepository
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-/**
- * Contenedor de dependencias de la aplicación (patrón oficial de los Codelabs de Android Developers:
- * Inventory App + Mars Photos).
- *
- * Cadena de dependencias:
- * GymApplication -> AppContainer -> MainActivity -> Compose -> ViewModel -> Repository -> Local (Room) / Remote (Retrofit)
- */
 interface AppContainer {
     val gymRepository: GymRepository
     val networkGymRepository: RemoteGymRepository
@@ -24,8 +17,7 @@ interface AppContainer {
 
 class AppDataContainer(private val context: Context) : AppContainer {
 
-    // URL base preparada para un futuro backend local en emulador Android (10.0.2.2) o en la nube
-    private val baseUrl = "http://10.0.2.2:8080/api/"
+    private val baseUrl = "https://appfb-25327.firebaseio.com/"
 
     private val database: GymDatabase by lazy {
         GymDatabase.getDatabase(context)
@@ -42,6 +34,10 @@ class AppDataContainer(private val context: Context) : AppContainer {
         retrofit.create(GymApiService::class.java)
     }
 
+    override val networkGymRepository: RemoteGymRepository by lazy {
+        NetworkGymRepository(retrofitService)
+    }
+
     override val gymRepository: GymRepository by lazy {
         LocalGymRepository(
             userDao = database.userDao(),
@@ -49,11 +45,8 @@ class AppDataContainer(private val context: Context) : AppContainer {
             routineDao = database.routineDao(),
             storeDao = database.storeDao(),
             notificationDao = database.notificationDao(),
-            mediaAssetDao = database.mediaAssetDao()
+            mediaAssetDao = database.mediaAssetDao(),
+            networkRepository = networkGymRepository
         )
-    }
-
-    override val networkGymRepository: RemoteGymRepository by lazy {
-        NetworkGymRepository(retrofitService)
     }
 }

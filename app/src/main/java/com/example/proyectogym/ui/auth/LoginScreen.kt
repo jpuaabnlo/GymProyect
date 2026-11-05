@@ -12,13 +12,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,6 +42,13 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsState()
     var mostrarDialogoRecuperar by remember { mutableStateOf(false) }
     var correoRecuperar by remember { mutableStateOf("") }
+
+    var mostrarDialogoRegistro by remember { mutableStateOf(false) }
+    var regNombre by remember { mutableStateOf("") }
+    var regEmail by remember { mutableStateOf("") }
+    var regTelefono by remember { mutableStateOf("") }
+    var regPassword by remember { mutableStateOf("") }
+    var regRol by remember { mutableStateOf("CLIENTE") }
 
     Column(
         modifier = Modifier
@@ -131,53 +136,91 @@ fun LoginScreen(
             Text("Iniciar Sesión")
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+        OutlinedButton(
+            onClick = {
+                regNombre = ""
+                regEmail = ""
+                regTelefono = ""
+                regPassword = ""
+                regRol = if (uiState.usuariosRegistrados.isEmpty()) "ADMIN" else "CLIENTE"
+                mostrarDialogoRegistro = true
+            },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "Cuentas de prueba (Base de datos Room)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "• Cliente: cliente@gym.com / 1234\n• Entrenador: coach@gym.com / 1234\n• Admin: admin@gym.com / 1234",
-                    style = MaterialTheme.typography.bodySmall
-                )
+            Text("Crear cuenta")
+        }
+    }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { viewModel.accesoRapidoDemo("CLIENTE", onLoginSuccess) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cliente")
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.accesoRapidoDemo("ENTRENADOR", onLoginSuccess) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Coach")
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.accesoRapidoDemo("ADMIN", onLoginSuccess) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Admin")
+    if (mostrarDialogoRegistro) {
+        val roles = listOf("CLIENTE", "ENTRENADOR", "ADMIN")
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoRegistro = false },
+            title = { Text("Crear nueva cuenta") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = regNombre,
+                        onValueChange = { regNombre = it },
+                        label = { Text("Nombre completo") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = regEmail,
+                        onValueChange = { regEmail = it },
+                        label = { Text("Correo electrónico") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = regTelefono,
+                        onValueChange = { regTelefono = it },
+                        label = { Text("Teléfono") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = regPassword,
+                        onValueChange = { regPassword = it },
+                        label = { Text("Contraseña") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("Tipo de cuenta:", fontWeight = FontWeight.SemiBold)
+                    roles.forEach { rol ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = regRol == rol,
+                                onClick = { regRol = rol }
+                            )
+                            Text(rol)
+                        }
                     }
                 }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    mostrarDialogoRegistro = false
+                    viewModel.registrarCuenta(
+                        nombre = regNombre,
+                        email = regEmail,
+                        telefono = regTelefono,
+                        password = regPassword,
+                        rol = regRol
+                    )
+                }) {
+                    Text("Registrar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoRegistro = false }) {
+                    Text("Cancelar")
+                }
             }
-        }
+        )
     }
 
     if (mostrarDialogoRecuperar) {

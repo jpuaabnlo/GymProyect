@@ -10,6 +10,6 @@ data class SaleEntity(
     val adminId: Int,
     val resumenProductos: String,
     val total: Double,
-    val metodoPago: String, // "EFECTIVO", "TARJETA", "TRANSFERENCIA"
+    val metodoPago: String,
     val fecha: String
 )

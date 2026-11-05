@@ -4,6 +4,10 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.proyectogym"
     compileSdk {
@@ -49,14 +53,15 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Room (Base de datos local SQLite)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // Retrofit + Gson (Cliente Web API y configuración JSON)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
+
+    implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
+    implementation("com.google.firebase:firebase-analytics")
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

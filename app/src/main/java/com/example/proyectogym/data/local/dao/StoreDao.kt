@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StoreDao {
-    // --- Productos ---
     @Query("SELECT * FROM products ORDER BY nombre ASC")
     fun observeAllProducts(): Flow<List<ProductEntity>>
 
@@ -25,7 +24,6 @@ interface StoreDao {
     @Delete
     suspend fun deleteProduct(product: ProductEntity)
 
-    // --- Ventas POS ---
     @Query("SELECT * FROM sales ORDER BY id DESC")
     fun observeAllSales(): Flow<List<SaleEntity>>
 

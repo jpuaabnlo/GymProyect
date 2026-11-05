@@ -66,7 +66,6 @@ fun AdminDashboardScreen(
             }
         }
 
-        // Indicadores superiores
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -90,7 +89,6 @@ fun AdminDashboardScreen(
             }
         }
 
-        // Próximas reinscripciones
         item {
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Text(
@@ -139,7 +137,6 @@ fun AdminDashboardScreen(
             }
         }
 
-        // Acumulado de asistencias por servicio
         item {
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Text(
@@ -161,7 +158,6 @@ fun AdminDashboardScreen(
             }
         }
 
-        // Registro manual de asistencia en mostrador
         item {
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Text(

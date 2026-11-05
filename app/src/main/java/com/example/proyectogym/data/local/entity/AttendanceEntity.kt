@@ -12,5 +12,5 @@ data class AttendanceEntity(
     val servicioNombre: String,
     val fecha: String,
     val hora: String,
-    val origen: String // "MANUAL", "CHECKIN_APP"
+    val origen: String
 )

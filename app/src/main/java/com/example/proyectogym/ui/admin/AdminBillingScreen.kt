@@ -82,7 +82,6 @@ fun AdminBillingScreen(
             }
         }
 
-        // 1. Seleccionar socio
         item {
             Text(
                 text = "1. Selecciona el cliente:",
@@ -102,7 +101,6 @@ fun AdminBillingScreen(
             }
         }
 
-        // 2. Seleccionar servicio
         item {
             HorizontalDivider()
             Text(
@@ -124,7 +122,6 @@ fun AdminBillingScreen(
             }
         }
 
-        // 3. Seleccionar método de pago (RadioButton requerido)
         item {
             HorizontalDivider()
             Text(
@@ -149,7 +146,6 @@ fun AdminBillingScreen(
             }
         }
 
-        // Resumen y botón de cobro
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),

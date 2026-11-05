@@ -93,7 +93,7 @@ class ProfileViewModel(
                 horarioHabitual = _uiState.value.horarioHabitual
             )
             gymRepository.updateUser(actualizado)
-            _uiState.update { it.copy(usuario = actualizado, mensajeGuardado = "Perfil guardado en la base de datos local") }
+            _uiState.update { it.copy(usuario = actualizado, mensajeGuardado = "Perfil actualizado") }
         }
     }
 
@@ -120,7 +120,7 @@ class ProfileViewModel(
             _uiState.update {
                 it.copy(
                     horarioHabitual = hora,
-                    mensajeGuardado = "Recordatorio ($hora) guardado en tabla de Notificaciones"
+                    mensajeGuardado = "Recordatorio guardado para las $hora"
                 )
             }
         }
@@ -146,7 +146,7 @@ class ProfileViewModel(
                     fechaRegistro = hoy
                 )
             )
-            _uiState.update { it.copy(mensajeGuardado = "Referencia multimedia registrada en Room") }
+            _uiState.update { it.copy(mensajeGuardado = "Foto de perfil registrada") }
         }
     }
 }

@@ -11,10 +11,6 @@ import com.example.proyectogym.ui.client.ClientViewModel
 import com.example.proyectogym.ui.coach.CoachViewModel
 import com.example.proyectogym.ui.profile.ProfileViewModel
 
-/**
- * Proveedor centralizado de ViewModels (estilo oficial Codelab Inventory de Android Developers).
- * Conecta la cadena: GymApplication -> AppContainer -> ViewModel -> Repository Local / Remote.
- */
 object AppViewModelProvider {
     val Factory = viewModelFactory {
         initializer {

@@ -3,6 +3,7 @@ package com.example.proyectogym.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.proyectogym.data.local.entity.UserEntity
+import com.example.proyectogym.data.remote.toEntity
 import com.example.proyectogym.data.repository.GymRepository
 import com.example.proyectogym.data.repository.RemoteGymRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,6 +11,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class LoginUiState(
     val email: String = "",
@@ -17,7 +21,6 @@ data class LoginUiState(
     val recordarSesion: Boolean = true,
     val mensajeError: String? = null,
     val mensajeInfo: String? = null,
-    val cargando: Boolean = false,
     val usuariosRegistrados: List<UserEntity> = emptyList()
 )
 
@@ -31,10 +34,9 @@ class LoginViewModel(
 
     init {
         viewModelScope.launch {
-            _uiState.update { it.copy(cargando = true) }
-            gymRepository.seedInitialDataIfEmpty()
-            _uiState.update { it.copy(cargando = false) }
-
+            gymRepository.syncFromRemote()
+        }
+        viewModelScope.launch {
             gymRepository.observeAllUsers().collect { users ->
                 _uiState.update { it.copy(usuariosRegistrados = users) }
             }
@@ -63,31 +65,65 @@ class LoginViewModel(
         }
 
         viewModelScope.launch {
-            val usuario = gymRepository.login(correo, clave)
+            var usuario = gymRepository.login(correo, clave)
+            if (usuario == null) {
+                gymRepository.syncFromRemote()
+                usuario = gymRepository.login(correo, clave)
+            }
             if (usuario != null) {
                 _uiState.update { it.copy(mensajeError = null) }
                 onLoginExitoso(usuario)
             } else {
-                _uiState.update { it.copy(mensajeError = "Credenciales incorrectas. Verifica correo y contraseña.") }
+                _uiState.update { it.copy(mensajeError = "Credenciales incorrectas.") }
             }
         }
     }
 
-    fun accesoRapidoDemo(rolBuscado: String, onLoginExitoso: (UserEntity) -> Unit) {
-        viewModelScope.launch {
-            gymRepository.seedInitialDataIfEmpty()
-            val demoEmail = when (rolBuscado) {
-                "ADMIN" -> "admin@gym.com"
-                "ENTRENADOR" -> "coach@gym.com"
-                else -> "cliente@gym.com"
-            }
-            val usuario = gymRepository.login(demoEmail, "1234")
-                ?: _uiState.value.usuariosRegistrados.firstOrNull { it.rol == rolBuscado }
+    fun registrarCuenta(
+        nombre: String,
+        email: String,
+        telefono: String,
+        password: String,
+        rol: String
+    ) {
+        val nombreLimpio = nombre.trim()
+        val correoLimpio = email.trim()
+        val claveLimpia = password.trim()
 
-            if (usuario != null) {
-                onLoginExitoso(usuario)
-            } else {
-                _uiState.update { it.copy(mensajeError = "No se encontró usuario demo para $rolBuscado") }
+        if (nombreLimpio.isBlank() || correoLimpio.isBlank() || claveLimpia.isBlank()) {
+            _uiState.update { it.copy(mensajeError = "Completa nombre, correo y contraseña para registrarte") }
+            return
+        }
+
+        viewModelScope.launch {
+            gymRepository.syncFromRemote()
+            val existeRemoto = networkRepository.findUserByEmail(correoLimpio).getOrNull() != null
+            val existeLocal = _uiState.value.usuariosRegistrados.any {
+                it.email.equals(correoLimpio, ignoreCase = true)
+            }
+            if (existeRemoto || existeLocal) {
+                _uiState.update { it.copy(mensajeError = "Ya existe una cuenta con ese correo") }
+                return@launch
+            }
+
+            val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            gymRepository.insertUser(
+                UserEntity(
+                    nombre = nombreLimpio,
+                    email = correoLimpio,
+                    password = claveLimpia,
+                    telefono = telefono.trim(),
+                    rol = rol,
+                    fechaAlta = hoy
+                )
+            )
+            _uiState.update {
+                it.copy(
+                    email = correoLimpio,
+                    password = claveLimpia,
+                    mensajeError = null,
+                    mensajeInfo = "Cuenta registrada para $nombreLimpio. Ya puedes iniciar sesión."
+                )
             }
         }
     }
@@ -98,15 +134,14 @@ class LoginViewModel(
             return
         }
         viewModelScope.launch {
-            // Intentamos notificar por capa remota (falla silenciosa sin backend) y validamos en BD local
-            networkRepository.recoverPassword(correoRecuperacion)
-            val encontrado = _uiState.value.usuariosRegistrados.firstOrNull {
+            val remoto = networkRepository.findUserByEmail(correoRecuperacion).getOrNull()?.toEntity()
+            val encontrado = remoto ?: _uiState.value.usuariosRegistrados.firstOrNull {
                 it.email.equals(correoRecuperacion.trim(), ignoreCase = true)
             }
             if (encontrado != null) {
                 _uiState.update {
                     it.copy(
-                        mensajeInfo = "Cuenta encontrada (${encontrado.nombre}). Contraseña local registrada: ${encontrado.password}",
+                        mensajeInfo = "Cuenta de ${encontrado.nombre}: contraseña registrada ${encontrado.password}",
                         mensajeError = null
                     )
                 }
