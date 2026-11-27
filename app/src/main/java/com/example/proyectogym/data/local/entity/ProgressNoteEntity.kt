@@ -10,8 +10,11 @@ data class ProgressNoteEntity(
     val userId: Int,
     val titulo: String,
     val pesoCorporalKg: Double,
-    val pesoLevantadoKg: Double,
-    val repeticionesLogradas: Int,
+    val pesoLevantadoKg: Double = 0.0,
+    val repeticionesLogradas: Int = 0,
+    val indiceGrasaPct: Double = 0.0,
+    val masaMuscularKg: Double = 0.0,
+    val imc: Double = 0.0,
     val comentario: String,
     val fecha: String
 )

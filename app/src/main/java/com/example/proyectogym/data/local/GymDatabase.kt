@@ -36,7 +36,7 @@ import com.example.proyectogym.data.local.entity.UserEntity
         NotificationEntity::class,
         MediaAssetEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class GymDatabase : RoomDatabase() {

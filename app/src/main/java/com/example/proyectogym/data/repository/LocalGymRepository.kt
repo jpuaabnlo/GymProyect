@@ -20,6 +20,12 @@ import com.example.proyectogym.data.local.entity.UserEntity
 import com.example.proyectogym.data.remote.toDto
 import com.example.proyectogym.data.remote.toEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class LocalGymRepository(
     private val userDao: UserDao,
@@ -31,40 +37,352 @@ class LocalGymRepository(
     private val networkRepository: RemoteGymRepository
 ) : GymRepository {
 
+    private val attendanceMutex = Mutex()
+    private val syncMutex = Mutex()
+
     override suspend fun syncFromRemote() {
-        networkRepository.getUsers().onSuccess { list ->
-            list.forEach { userDao.insertUser(it.toEntity()) }
+        if (!syncMutex.tryLock()) return
+        try {
+            runCatching {
+                networkRepository.getUsers().onSuccess { list ->
+                    list.forEach { userDao.insertUser(it.toEntity()) }
+                }
+                networkRepository.getServices().onSuccess { list ->
+                    list.forEach { membershipDao.insertService(it.toEntity()) }
+                }
+                networkRepository.getMemberships().onSuccess { list ->
+                    list.forEach { membershipDao.insertMembership(it.toEntity()) }
+                }
+                networkRepository.getAttendances().onSuccess { list ->
+                    list.forEach { membershipDao.insertAttendance(it.toEntity()) }
+                }
+                networkRepository.getRoutines().onSuccess { list ->
+                    list.forEach { routineDao.insertRoutine(it.toEntity()) }
+                }
+                networkRepository.getRoutineExercises().onSuccess { list ->
+                    list.forEach { routineDao.insertExercise(it.toEntity()) }
+                }
+                networkRepository.getProgressNotes().onSuccess { list ->
+                    list.forEach { routineDao.insertProgressNote(it.toEntity()) }
+                }
+                networkRepository.getProducts().onSuccess { list ->
+                    list.forEach { storeDao.insertProduct(it.toEntity()) }
+                }
+                networkRepository.getSales().onSuccess { list ->
+                    list.forEach { storeDao.insertSale(it.toEntity()) }
+                }
+                networkRepository.getNotifications().onSuccess { list ->
+                    list.forEach { notificationDao.insertNotification(it.toEntity()) }
+                }
+                networkRepository.getMediaAssets().onSuccess { list ->
+                    list.forEach { mediaAssetDao.insertMediaAsset(it.toEntity()) }
+                }
+
+                // Si Firebase y Room están vacíos, cargamos datos iniciales de respaldo.
+                seedInitialDataIfEmpty()
+            }
+        } finally {
+            syncMutex.unlock()
         }
-        networkRepository.getServices().onSuccess { list ->
-            list.forEach { membershipDao.insertService(it.toEntity()) }
+    }
+
+    private fun relativeDateStr(daysOffset: Int): String {
+        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, daysOffset) }
+        return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+    }
+
+    override suspend fun seedInitialDataIfEmpty() {
+        val hayUsuarios = userDao.countUsers() > 0
+
+        if (!hayUsuarios) {
+            val hoy = relativeDateStr(0)
+            val haceDosDias = relativeDateStr(-2)
+            val ayer = relativeDateStr(-1)
+            val haceQuinceDias = relativeDateStr(-15)
+            val enQuinceDias = relativeDateStr(15)
+            val enCuatroDias = relativeDateStr(4)
+            val haceTreintaDias = relativeDateStr(-30)
+
+            val adminId = insertUser(
+                UserEntity(
+                    nombre = "Sofía Hernández",
+                    email = "admin@gym.com",
+                    password = "1234",
+                    telefono = "5551002000",
+                    rol = "ADMIN",
+                    objetivo = "Administración general",
+                    horarioHabitual = "08:00",
+                    fechaAlta = haceTreintaDias
+                )
+            ).toInt()
+
+            val coachId = insertUser(
+                UserEntity(
+                    nombre = "Carlos Ramírez",
+                    email = "coach@gym.com",
+                    password = "1234",
+                    telefono = "5553004000",
+                    rol = "ENTRENADOR",
+                    objetivo = "Fuerza e Hipertrofia",
+                    horarioHabitual = "07:00",
+                    fechaAlta = haceTreintaDias
+                )
+            ).toInt()
+
+            val client1Id = insertUser(
+                UserEntity(
+                    nombre = "Juan Pérez",
+                    email = "cliente@gym.com",
+                    password = "1234",
+                    telefono = "5555006000",
+                    rol = "CLIENTE",
+                    objetivo = "Ganar masa muscular",
+                    horarioHabitual = "18:30",
+                    fechaAlta = haceTreintaDias,
+                    coachId = coachId
+                )
+            ).toInt()
+
+            val client2Id = insertUser(
+                UserEntity(
+                    nombre = "Ana López",
+                    email = "ana@gym.com",
+                    password = "1234",
+                    telefono = "5557008000",
+                    rol = "CLIENTE",
+                    objetivo = "Mejorar condición física",
+                    horarioHabitual = "19:00",
+                    fechaAlta = haceQuinceDias,
+                    coachId = coachId
+                )
+            ).toInt()
+
+            val servPersonalizadoId = seedBaseServicesAndGetPersonalizedId()
+
+            insertMembership(
+                MembershipEntity(
+                    userId = client1Id,
+                    clienteNombre = "Juan Pérez",
+                    serviceId = servPersonalizadoId,
+                    servicioNombre = "Mensualidad con Entrenador",
+                    montoPagado = 1200.0,
+                    metodoPago = "TARJETA",
+                    fechaInicio = haceQuinceDias,
+                    fechaVencimiento = enQuinceDias,
+                    diasRestantes = 15,
+                    estado = "ACTIVA"
+                )
+            )
+
+            insertMembership(
+                MembershipEntity(
+                    userId = client2Id,
+                    clienteNombre = "Ana López",
+                    serviceId = servPersonalizadoId,
+                    servicioNombre = "Mensualidad General",
+                    montoPagado = 550.0,
+                    metodoPago = "EFECTIVO",
+                    fechaInicio = haceTreintaDias,
+                    fechaVencimiento = enCuatroDias,
+                    diasRestantes = 4,
+                    estado = "POR_VENCER"
+                )
+            )
+
+            insertAttendance(
+                AttendanceEntity(
+                    userId = client1Id,
+                    usuarioNombre = "Juan Pérez",
+                    servicioNombre = "Mensualidad con Entrenador",
+                    fecha = haceDosDias,
+                    hora = "18:30",
+                    origen = "QR"
+                )
+            )
+            insertAttendance(
+                AttendanceEntity(
+                    userId = client2Id,
+                    usuarioNombre = "Ana López",
+                    servicioNombre = "Mensualidad General",
+                    fecha = ayer,
+                    hora = "19:00",
+                    origen = "MANUAL"
+                )
+            )
+
+            val todayName = AttendanceCooldownHelper.getTodaySpanishName()
+            val routine1Id = insertRoutine(
+                RoutineEntity(
+                    coachId = coachId,
+                    clienteId = client1Id,
+                    clienteNombre = "Juan Pérez",
+                    nombre = "Pecho · $todayName",
+                    grupoMuscular = "Pecho",
+                    objetivo = "Hipertrofia",
+                    diasSemana = todayName
+                )
+            ).toInt()
+
+            insertExercise(
+                RoutineExerciseEntity(
+                    routineId = routine1Id,
+                    nombre = "Press de Banca plana",
+                    grupoMuscular = "Pecho",
+                    series = 4,
+                    repeticiones = 10,
+                    pesoSugeridoKg = 60.0,
+                    completado = true
+                )
+            )
+            insertExercise(
+                RoutineExerciseEntity(
+                    routineId = routine1Id,
+                    nombre = "Remo con barra",
+                    grupoMuscular = "Espalda",
+                    series = 4,
+                    repeticiones = 12,
+                    pesoSugeridoKg = 45.0,
+                    completado = false
+                )
+            )
+            insertExercise(
+                RoutineExerciseEntity(
+                    routineId = routine1Id,
+                    nombre = "Curl de bíceps",
+                    grupoMuscular = "Brazo",
+                    series = 3,
+                    repeticiones = 15,
+                    pesoSugeridoKg = 14.0,
+                    completado = false
+                )
+            )
+
+            insertProgressNote(
+                ProgressNoteEntity(
+                    userId = client1Id,
+                    titulo = "Evaluación inicial",
+                    pesoCorporalKg = 76.0,
+                    indiceGrasaPct = 21.5,
+                    masaMuscularKg = 33.2,
+                    imc = 24.8,
+                    comentario = "Inicio de etapa de recomposición.",
+                    fecha = haceTreintaDias
+                )
+            )
+            insertProgressNote(
+                ProgressNoteEntity(
+                    userId = client1Id,
+                    titulo = "Control quincenal",
+                    pesoCorporalKg = 75.2,
+                    indiceGrasaPct = 20.1,
+                    masaMuscularKg = 34.0,
+                    imc = 24.5,
+                    comentario = "Mejoría en masa magra y energía.",
+                    fecha = haceQuinceDias
+                )
+            )
+            insertProgressNote(
+                ProgressNoteEntity(
+                    userId = client1Id,
+                    titulo = "Medición reciente",
+                    pesoCorporalKg = 74.5,
+                    indiceGrasaPct = 18.8,
+                    masaMuscularKg = 34.9,
+                    imc = 24.2,
+                    comentario = "Buena adherencia a rutina y dieta.",
+                    fecha = haceDosDias
+                )
+            )
+
+            insertProduct(
+                ProductEntity(
+                    nombre = "Proteína Whey 2 lb",
+                    categoria = "Suplementos",
+                    precio = 780.0,
+                    stock = 8
+                )
+            )
+            insertProduct(
+                ProductEntity(
+                    nombre = "Creatina Monohidratada 300g",
+                    categoria = "Suplementos",
+                    precio = 450.0,
+                    stock = 12
+                )
+            )
+            insertProduct(
+                ProductEntity(
+                    nombre = "Agua Natural 1 Litro",
+                    categoria = "Bebidas",
+                    precio = 20.0,
+                    stock = 30
+                )
+            )
+            insertProduct(
+                ProductEntity(
+                    nombre = "Guantes de Entrenamiento",
+                    categoria = "Accesorios",
+                    precio = 220.0,
+                    stock = 6
+                )
+            )
+
+            insertSale(
+                SaleEntity(
+                    adminId = adminId,
+                    resumenProductos = "1x Creatina Monohidratada 300g, 1x Agua Natural 1 Litro",
+                    total = 470.0,
+                    metodoPago = "EFECTIVO",
+                    fecha = hoy
+                )
+            )
+        } else if (membershipDao.countServices() == 0) {
+            seedBaseServicesAndGetPersonalizedId()
         }
-        networkRepository.getMemberships().onSuccess { list ->
-            list.forEach { membershipDao.insertMembership(it.toEntity()) }
-        }
-        networkRepository.getAttendances().onSuccess { list ->
-            list.forEach { membershipDao.insertAttendance(it.toEntity()) }
-        }
-        networkRepository.getRoutines().onSuccess { list ->
-            list.forEach { routineDao.insertRoutine(it.toEntity()) }
-        }
-        networkRepository.getRoutineExercises().onSuccess { list ->
-            list.forEach { routineDao.insertExercise(it.toEntity()) }
-        }
-        networkRepository.getProgressNotes().onSuccess { list ->
-            list.forEach { routineDao.insertProgressNote(it.toEntity()) }
-        }
-        networkRepository.getProducts().onSuccess { list ->
-            list.forEach { storeDao.insertProduct(it.toEntity()) }
-        }
-        networkRepository.getSales().onSuccess { list ->
-            list.forEach { storeDao.insertSale(it.toEntity()) }
-        }
-        networkRepository.getNotifications().onSuccess { list ->
-            list.forEach { notificationDao.insertNotification(it.toEntity()) }
-        }
-        networkRepository.getMediaAssets().onSuccess { list ->
-            list.forEach { mediaAssetDao.insertMediaAsset(it.toEntity()) }
-        }
+    }
+
+    private suspend fun seedBaseServicesAndGetPersonalizedId(): Int {
+        insertService(
+            ServiceEntity(
+                nombre = "Mensualidad General",
+                tipo = "MENSUAL",
+                precio = 550.0,
+                duracionDias = 30,
+                horario = "06:00 - 22:00"
+            )
+        )
+
+        val servPersonalizadoId = insertService(
+            ServiceEntity(
+                nombre = "Mensualidad con Entrenador",
+                tipo = "PERSONALIZADO",
+                precio = 1200.0,
+                duracionDias = 30,
+                horario = "07:00 - 21:00"
+            )
+        ).toInt()
+
+        insertService(
+            ServiceEntity(
+                nombre = "Clase Bicicleta / Spinning",
+                tipo = "CLASE",
+                precio = 450.0,
+                duracionDias = 30,
+                horario = "Lun-Vie 19:00"
+            )
+        )
+
+        insertService(
+            ServiceEntity(
+                nombre = "Visita por 1 Día",
+                tipo = "VISITA",
+                precio = 80.0,
+                duracionDias = 1,
+                horario = "Horario libre"
+            )
+        )
+
+        return servPersonalizadoId
     }
 
     override suspend fun login(email: String, password: String): UserEntity? =
@@ -145,9 +463,32 @@ class LocalGymRepository(
         return id
     }
 
+    override suspend fun registerAttendanceWithCooldown(
+        attendance: AttendanceEntity
+    ): AttendanceRegistrationResult = attendanceMutex.withLock {
+        val existing = membershipDao.getAttendancesByUserOnce(attendance.userId)
+        val remaining = AttendanceCooldownHelper.remainingCooldownMinutes(existing)
+        if (remaining > 0L) {
+            return@withLock AttendanceRegistrationResult.CooldownActive(remaining)
+        }
+
+        val now = Date()
+        val fechaStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now)
+        val horaFull = SimpleDateFormat("HH:mm:ss", Locale.US).format(now)
+        val nuevaAsistencia = attendance.copy(fecha = fechaStr, hora = horaFull)
+
+        val id = membershipDao.insertAttendance(nuevaAsistencia)
+        val saved = if (nuevaAsistencia.id == 0) nuevaAsistencia.copy(id = id.toInt()) else nuevaAsistencia
+        networkRepository.saveAttendance(saved.toDto())
+
+        AttendanceRegistrationResult.Success(horaFull.take(5))
+    }
+
     override fun observeAllRoutines(): Flow<List<RoutineEntity>> = routineDao.observeAllRoutines()
     override fun observeRoutinesByCoach(coachId: Int): Flow<List<RoutineEntity>> =
         routineDao.observeRoutinesByCoach(coachId)
+    override fun observeRoutinesForClient(clienteId: Int): Flow<List<RoutineEntity>> =
+        routineDao.observeRoutinesForClient(clienteId)
     override fun observeActiveRoutineForClient(clienteId: Int): Flow<RoutineEntity?> =
         routineDao.observeActiveRoutineForClient(clienteId)
     override suspend fun getRoutineById(routineId: Int): RoutineEntity? =

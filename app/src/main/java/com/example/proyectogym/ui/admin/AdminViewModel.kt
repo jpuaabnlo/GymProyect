@@ -2,13 +2,17 @@ package com.example.proyectogym.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.proyectogym.R
 import com.example.proyectogym.data.local.entity.AttendanceEntity
+import com.example.proyectogym.data.local.entity.MediaAssetEntity
 import com.example.proyectogym.data.local.entity.MembershipEntity
 import com.example.proyectogym.data.local.entity.ProductEntity
 import com.example.proyectogym.data.local.entity.SaleEntity
 import com.example.proyectogym.data.local.entity.ServiceEntity
 import com.example.proyectogym.data.local.entity.UserEntity
+import com.example.proyectogym.data.repository.AttendanceRegistrationResult
 import com.example.proyectogym.data.repository.GymRepository
+import com.example.proyectogym.ui.components.UiMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +33,7 @@ data class AdminUiState(
     val ventas: List<SaleEntity> = emptyList(),
     val carrito: Map<Int, Int> = emptyMap(),
     val metodoPagoTienda: String = "EFECTIVO",
-    val mensajeFeedback: String? = null
+    val mensajeFeedback: UiMessage? = null
 )
 
 class AdminViewModel(
@@ -79,23 +83,35 @@ class AdminViewModel(
     }
 
     fun registrarAsistenciaManual(usuario: UserEntity, servicioNombre: String) {
-        val ahora = Date()
-        val fechaStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(ahora)
-        val horaStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(ahora)
-
         viewModelScope.launch {
-            gymRepository.insertAttendance(
+            val resultado = gymRepository.registerAttendanceWithCooldown(
                 AttendanceEntity(
                     userId = usuario.id,
                     usuarioNombre = usuario.nombre,
                     servicioNombre = servicioNombre,
-                    fecha = fechaStr,
-                    hora = horaStr,
+                    fecha = "",
+                    hora = "",
                     origen = "MANUAL"
                 )
             )
-            _uiState.update {
-                it.copy(mensajeFeedback = "Asistencia registrada para ${usuario.nombre}")
+            when (resultado) {
+                is AttendanceRegistrationResult.Success -> {
+                    _uiState.update {
+                        it.copy(mensajeFeedback = UiMessage(R.string.admin_checkin_msg, listOf(usuario.nombre)))
+                    }
+                }
+                is AttendanceRegistrationResult.CooldownActive -> {
+                    val horas = resultado.remainingMinutes / 60
+                    val mins = resultado.remainingMinutes % 60
+                    _uiState.update {
+                        it.copy(
+                            mensajeFeedback = UiMessage(
+                                R.string.admin_checkin_cooldown,
+                                listOf(usuario.nombre, horas, mins)
+                            )
+                        )
+                    }
+                }
             }
         }
     }
@@ -105,32 +121,60 @@ class AdminViewModel(
         servicio: ServiceEntity,
         metodoPago: String
     ) {
-        val formato = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val calendario = Calendar.getInstance()
-        val fechaInicio = formato.format(calendario.time)
-        calendario.add(Calendar.DAY_OF_YEAR, servicio.duracionDias)
-        val fechaVencimiento = formato.format(calendario.time)
+        cobrarServicios(
+            cliente = cliente,
+            servicios = listOf(servicio),
+            metodoPago = metodoPago,
+            coachSeleccionado = null
+        )
+    }
 
-        val estado = if (servicio.duracionDias <= 7) "POR_VENCER" else "ACTIVA"
+    fun cobrarServicios(
+        cliente: UserEntity,
+        servicios: List<ServiceEntity>,
+        metodoPago: String,
+        coachSeleccionado: UserEntity? = null
+    ) {
+        if (servicios.isEmpty()) return
+        val formato = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
         viewModelScope.launch {
-            gymRepository.insertMembership(
-                MembershipEntity(
-                    userId = cliente.id,
-                    clienteNombre = cliente.nombre,
-                    serviceId = servicio.id,
-                    servicioNombre = servicio.nombre,
-                    montoPagado = servicio.precio,
-                    metodoPago = metodoPago,
-                    fechaInicio = fechaInicio,
-                    fechaVencimiento = fechaVencimiento,
-                    diasRestantes = servicio.duracionDias,
-                    estado = estado
+            var totalCobrado = 0.0
+            servicios.forEach { servicio ->
+                val calendario = Calendar.getInstance()
+                val fechaInicio = formato.format(calendario.time)
+                calendario.add(Calendar.DAY_OF_YEAR, servicio.duracionDias)
+                val fechaVencimiento = formato.format(calendario.time)
+                val estado = if (servicio.duracionDias <= 7) "POR_VENCER" else "ACTIVA"
+
+                gymRepository.insertMembership(
+                    MembershipEntity(
+                        userId = cliente.id,
+                        clienteNombre = cliente.nombre,
+                        serviceId = servicio.id,
+                        servicioNombre = servicio.nombre,
+                        montoPagado = servicio.precio,
+                        metodoPago = metodoPago,
+                        fechaInicio = fechaInicio,
+                        fechaVencimiento = fechaVencimiento,
+                        diasRestantes = servicio.duracionDias,
+                        estado = estado
+                    )
                 )
-            )
+                totalCobrado += servicio.precio
+            }
+
+            if (coachSeleccionado != null && cliente.coachId != coachSeleccionado.id) {
+                gymRepository.updateUser(cliente.copy(coachId = coachSeleccionado.id))
+            }
+
+            val resumenServicios = servicios.joinToString(", ") { it.nombre }
             _uiState.update {
                 it.copy(
-                    mensajeFeedback = "Pago registrado: ${cliente.nombre} - ${servicio.nombre} ($${servicio.precio})"
+                    mensajeFeedback = UiMessage(
+                        R.string.admin_billing_msg,
+                        listOf(cliente.nombre, resumenServicios, totalCobrado)
+                    )
                 )
             }
         }
@@ -143,7 +187,9 @@ class AdminViewModel(
     fun agregarProductoCarrito(producto: ProductEntity) {
         val actual = _uiState.value.carrito[producto.id] ?: 0
         if (actual >= producto.stock) {
-            _uiState.update { it.copy(mensajeFeedback = "No hay más stock disponible de ${producto.nombre}") }
+            _uiState.update {
+                it.copy(mensajeFeedback = UiMessage(R.string.admin_store_no_stock, listOf(producto.nombre)))
+            }
             return
         }
         val nuevoMapa = _uiState.value.carrito.toMutableMap()
@@ -162,7 +208,7 @@ class AdminViewModel(
     fun confirmarVentaTienda(adminId: Int) {
         val state = _uiState.value
         if (state.carrito.isEmpty()) {
-            _uiState.update { it.copy(mensajeFeedback = "Agrega al menos un producto al carrito") }
+            _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_store_empty_cart)) }
             return
         }
 
@@ -194,7 +240,10 @@ class AdminViewModel(
             _uiState.update {
                 it.copy(
                     carrito = emptyMap(),
-                    mensajeFeedback = "Venta registrada por $$totalVenta (${state.metodoPagoTienda})"
+                    mensajeFeedback = UiMessage(
+                        R.string.admin_store_sale_ok,
+                        listOf(totalVenta, state.metodoPagoTienda)
+                    )
                 )
             }
         }
@@ -206,27 +255,33 @@ class AdminViewModel(
         email: String,
         password: String,
         telefono: String,
-        rol: String
+        rol: String,
+        coachId: Int? = null,
+        fotoUri: String? = null
     ) {
         if (nombre.isBlank() || email.isBlank()) {
-            _uiState.update { it.copy(mensajeFeedback = "Nombre y correo son obligatorios") }
+            _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_user_required)) }
             return
         }
-        val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val coachFinal = if (rol == "CLIENTE") coachId else null
+        val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         viewModelScope.launch {
+            val savedUserId: Int
             if (idExistente == null || idExistente == 0) {
-                gymRepository.insertUser(
+                savedUserId = gymRepository.insertUser(
                     UserEntity(
                         nombre = nombre.trim(),
                         email = email.trim(),
                         password = password.ifBlank { "1234" },
                         telefono = telefono.trim(),
                         rol = rol,
-                        fechaAlta = hoy
+                        fechaAlta = hoy,
+                        coachId = coachFinal
                     )
-                )
-                _uiState.update { it.copy(mensajeFeedback = "Usuario agregado") }
+                ).toInt()
+                _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_user_added)) }
             } else {
+                savedUserId = idExistente
                 val previo = gymRepository.getUserById(idExistente)
                 gymRepository.updateUser(
                     UserEntity(
@@ -239,10 +294,23 @@ class AdminViewModel(
                         objetivo = previo?.objetivo ?: "",
                         horarioHabitual = previo?.horarioHabitual ?: "No definido",
                         fechaAlta = previo?.fechaAlta ?: hoy,
-                        coachId = previo?.coachId
+                        coachId = coachFinal
                     )
                 )
-                _uiState.update { it.copy(mensajeFeedback = "Usuario actualizado") }
+                _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_user_updated)) }
+            }
+
+            if (!fotoUri.isNullOrBlank()) {
+                gymRepository.insertMediaAsset(
+                    MediaAssetEntity(
+                        ownerId = savedUserId,
+                        ownerType = "PERFIL",
+                        uriLocal = fotoUri,
+                        mimeType = "image/*",
+                        descripcion = nombre.trim(),
+                        fechaRegistro = hoy
+                    )
+                )
             }
         }
     }
@@ -250,7 +318,7 @@ class AdminViewModel(
     fun eliminarUsuario(usuario: UserEntity) {
         viewModelScope.launch {
             gymRepository.deleteUser(usuario)
-            _uiState.update { it.copy(mensajeFeedback = "Usuario eliminado") }
+            _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_user_deleted)) }
         }
     }
 
@@ -274,10 +342,10 @@ class AdminViewModel(
         viewModelScope.launch {
             if (idExistente == null || idExistente == 0) {
                 gymRepository.insertService(entidad)
-                _uiState.update { it.copy(mensajeFeedback = "Servicio agregado") }
+                _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_service_added)) }
             } else {
                 gymRepository.updateService(entidad)
-                _uiState.update { it.copy(mensajeFeedback = "Servicio actualizado") }
+                _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_service_updated)) }
             }
         }
     }
@@ -285,7 +353,7 @@ class AdminViewModel(
     fun eliminarServicio(servicio: ServiceEntity) {
         viewModelScope.launch {
             gymRepository.deleteService(servicio)
-            _uiState.update { it.copy(mensajeFeedback = "Servicio eliminado") }
+            _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_service_deleted)) }
         }
     }
 
@@ -307,10 +375,10 @@ class AdminViewModel(
         viewModelScope.launch {
             if (idExistente == null || idExistente == 0) {
                 gymRepository.insertProduct(entidad)
-                _uiState.update { it.copy(mensajeFeedback = "Producto agregado") }
+                _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_product_added)) }
             } else {
                 gymRepository.updateProduct(entidad)
-                _uiState.update { it.copy(mensajeFeedback = "Producto actualizado") }
+                _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_product_updated)) }
             }
         }
     }
@@ -318,7 +386,7 @@ class AdminViewModel(
     fun eliminarProducto(producto: ProductEntity) {
         viewModelScope.launch {
             gymRepository.deleteProduct(producto)
-            _uiState.update { it.copy(mensajeFeedback = "Producto eliminado") }
+            _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.admin_msg_product_deleted)) }
         }
     }
 }

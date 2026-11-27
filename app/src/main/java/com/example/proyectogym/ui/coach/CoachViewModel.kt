@@ -2,6 +2,7 @@ package com.example.proyectogym.ui.coach
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.proyectogym.R
 import com.example.proyectogym.data.local.entity.AttendanceEntity
 import com.example.proyectogym.data.local.entity.NotificationEntity
 import com.example.proyectogym.data.local.entity.ProgressNoteEntity
@@ -9,6 +10,7 @@ import com.example.proyectogym.data.local.entity.RoutineEntity
 import com.example.proyectogym.data.local.entity.RoutineExerciseEntity
 import com.example.proyectogym.data.local.entity.UserEntity
 import com.example.proyectogym.data.repository.GymRepository
+import com.example.proyectogym.ui.components.UiMessage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,11 +31,13 @@ data class CoachUiState(
     val asistenciasClienteSeleccionado: List<AttendanceEntity> = emptyList(),
     val editRoutineId: Int? = null,
     val editNombreRutina: String = "",
+    val editGrupoMuscular: String = "Pecho",
     val editObjetivo: String = "Fuerza",
-    val editDiasSeleccionados: Set<String> = setOf("Lun", "Mié", "Vie"),
+    val editDiaUnico: String = "Lunes",
+    val editDiasSeleccionados: Set<String> = setOf("Lunes"),
     val editClienteAsignadoId: Int? = null,
     val editEjercicios: List<RoutineExerciseEntity> = emptyList(),
-    val mensajeFeedback: String? = null
+    val mensajeFeedback: UiMessage? = null
 )
 
 class CoachViewModel(
@@ -55,8 +59,8 @@ class CoachViewModel(
         mainJob?.cancel()
         mainJob = viewModelScope.launch {
             combine(
-                gymRepository.observeUsersByRole("CLIENTE"),
-                gymRepository.observeAllRoutines()
+                gymRepository.observeClientsByCoach(coachId),
+                gymRepository.observeRoutinesByCoach(coachId)
             ) { clientes, rutinas ->
                 Pair(clientes, rutinas)
             }.collect { (clientes, rutinas) ->
@@ -107,9 +111,27 @@ class CoachViewModel(
             it.copy(
                 editRoutineId = null,
                 editNombreRutina = "",
+                editGrupoMuscular = "Pecho",
                 editObjetivo = "Fuerza",
-                editDiasSeleccionados = setOf("Lun", "Mié", "Vie"),
+                editDiaUnico = "Lunes",
+                editDiasSeleccionados = setOf("Lunes"),
                 editClienteAsignadoId = primerCliente?.id,
+                editEjercicios = emptyList(),
+                mensajeFeedback = null
+            )
+        }
+    }
+
+    fun prepararNuevaRutinaParaCliente(cliente: UserEntity) {
+        _uiState.update {
+            it.copy(
+                editRoutineId = null,
+                editNombreRutina = "",
+                editGrupoMuscular = "Pecho",
+                editObjetivo = "Fuerza",
+                editDiaUnico = "Lunes",
+                editDiasSeleccionados = setOf("Lunes"),
+                editClienteAsignadoId = cliente.id,
                 editEjercicios = emptyList(),
                 mensajeFeedback = null
             )
@@ -124,13 +146,19 @@ class CoachViewModel(
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
                 .toSet()
+            val diaPrincipal = dias.firstOrNull() ?: "Lunes"
+            val musculo = rutina.grupoMuscular.ifBlank {
+                ejercicios.firstOrNull()?.grupoMuscular?.ifBlank { "Pecho" } ?: "Pecho"
+            }
 
             _uiState.update {
                 it.copy(
                     editRoutineId = rutina.id,
                     editNombreRutina = rutina.nombre,
+                    editGrupoMuscular = musculo,
                     editObjetivo = rutina.objetivo,
-                    editDiasSeleccionados = if (dias.isEmpty()) setOf("Lun") else dias,
+                    editDiaUnico = diaPrincipal,
+                    editDiasSeleccionados = if (dias.isEmpty()) setOf(diaPrincipal) else dias,
                     editClienteAsignadoId = rutina.clienteId,
                     editEjercicios = ejercicios,
                     mensajeFeedback = null
@@ -143,8 +171,16 @@ class CoachViewModel(
         _uiState.update { it.copy(editNombreRutina = valor) }
     }
 
+    fun onEditGrupoMuscularChange(valor: String) {
+        _uiState.update { it.copy(editGrupoMuscular = valor) }
+    }
+
     fun onEditObjetivoChange(valor: String) {
         _uiState.update { it.copy(editObjetivo = valor) }
+    }
+
+    fun onEditDiaUnicoChange(dia: String) {
+        _uiState.update { it.copy(editDiaUnico = dia, editDiasSeleccionados = setOf(dia)) }
     }
 
     fun toggleDiaSemana(dia: String) {
@@ -165,17 +201,28 @@ class CoachViewModel(
         series: String,
         repeticiones: String,
         pesoKg: String
-    ) {
-        if (nombre.isBlank()) return
+    ): Boolean {
+        val nombreLimpio = nombre.trim()
+        if (nombreLimpio.isBlank()) return false
+        val yaExiste = _uiState.value.editEjercicios.any {
+            it.nombre.equals(nombreLimpio, ignoreCase = true)
+        }
+        if (yaExiste) {
+            _uiState.update {
+                it.copy(mensajeFeedback = UiMessage(R.string.coach_error_duplicate_exercise, listOf(nombreLimpio)))
+            }
+            return false
+        }
         val nuevo = RoutineExerciseEntity(
             routineId = _uiState.value.editRoutineId ?: 0,
-            nombre = nombre.trim(),
+            nombre = nombreLimpio,
             grupoMuscular = grupoMuscular.trim().ifBlank { "General" },
             series = series.toIntOrNull() ?: 3,
             repeticiones = repeticiones.toIntOrNull() ?: 12,
             pesoSugeridoKg = pesoKg.toDoubleOrNull() ?: 20.0
         )
-        _uiState.update { it.copy(editEjercicios = it.editEjercicios + nuevo) }
+        _uiState.update { it.copy(editEjercicios = it.editEjercicios + nuevo, mensajeFeedback = null) }
+        return true
     }
 
     fun quitarEjercicioTemporal(index: Int) {
@@ -186,24 +233,22 @@ class CoachViewModel(
         }
     }
 
-    fun guardarRutina(onGuardado: () -> Unit) {
+    fun guardarRutina(onGuardado: (routineName: String, clientName: String?) -> Unit) {
         val state = _uiState.value
-        if (state.editNombreRutina.isBlank()) {
-            _uiState.update { it.copy(mensajeFeedback = "Escribe un nombre para la rutina") }
-            return
-        }
-
         val cliente = state.clientes.firstOrNull { it.id == state.editClienteAsignadoId }
-        val diasTexto = state.editDiasSeleccionados.joinToString(", ").ifBlank { "Lun, Mié, Vie" }
+        val diaFinal = state.editDiaUnico.ifBlank { "Lunes" }
+        val nombreFinal = state.editNombreRutina.trim()
+            .ifBlank { "${state.editGrupoMuscular} · $diaFinal" }
 
         val entidadRutina = RoutineEntity(
             id = state.editRoutineId ?: 0,
             coachId = state.coachId,
             clienteId = cliente?.id,
             clienteNombre = cliente?.nombre ?: "Sin asignar",
-            nombre = state.editNombreRutina.trim(),
+            nombre = nombreFinal,
+            grupoMuscular = state.editGrupoMuscular,
             objetivo = state.editObjetivo,
-            diasSemana = diasTexto
+            diasSemana = diaFinal
         )
 
         viewModelScope.launch {
@@ -217,7 +262,7 @@ class CoachViewModel(
             gymRepository.replaceRoutineExercises(idFinal, state.editEjercicios)
 
             if (cliente != null) {
-                val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
                 gymRepository.insertNotification(
                     NotificationEntity(
                         userId = cliente.id,
@@ -232,15 +277,15 @@ class CoachViewModel(
                 )
             }
 
-            _uiState.update { it.copy(mensajeFeedback = "Rutina guardada correctamente") }
-            onGuardado()
+            _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.coach_msg_routine_saved)) }
+            onGuardado(entidadRutina.nombre, cliente?.nombre)
         }
     }
 
     fun eliminarRutina(rutina: RoutineEntity) {
         viewModelScope.launch {
             gymRepository.deleteRoutine(rutina)
-            _uiState.update { it.copy(mensajeFeedback = "Rutina eliminada") }
+            _uiState.update { it.copy(mensajeFeedback = UiMessage(R.string.coach_msg_routine_deleted)) }
         }
     }
 

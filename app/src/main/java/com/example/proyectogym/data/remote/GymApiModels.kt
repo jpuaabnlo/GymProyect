@@ -66,6 +66,7 @@ data class RoutineDto(
     @SerializedName("cliente_id") val clienteId: Int? = null,
     @SerializedName("cliente_nombre") val clienteNombre: String = "Sin asignar",
     @SerializedName("nombre") val nombre: String = "",
+    @SerializedName("grupo_muscular") val grupoMuscular: String = "",
     @SerializedName("objetivo") val objetivo: String = "",
     @SerializedName("dias_semana") val diasSemana: String = ""
 )
@@ -88,6 +89,9 @@ data class ProgressNoteDto(
     @SerializedName("peso_corporal_kg") val pesoCorporalKg: Double = 0.0,
     @SerializedName("peso_levantado_kg") val pesoLevantadoKg: Double = 0.0,
     @SerializedName("repeticiones_logradas") val repeticionesLogradas: Int = 0,
+    @SerializedName("indice_grasa_pct") val indiceGrasaPct: Double = 0.0,
+    @SerializedName("masa_muscular_kg") val masaMuscularKg: Double = 0.0,
+    @SerializedName("imc") val imc: Double = 0.0,
     @SerializedName("comentario") val comentario: String = "",
     @SerializedName("fecha") val fecha: String = ""
 )
@@ -144,14 +148,38 @@ fun MembershipDto.toEntity() = MembershipEntity(id, userId, clienteNombre, servi
 fun AttendanceEntity.toDto() = AttendanceDto(id, userId, usuarioNombre, servicioNombre, fecha, hora, origen)
 fun AttendanceDto.toEntity() = AttendanceEntity(id, userId, usuarioNombre, servicioNombre, fecha, hora, origen)
 
-fun RoutineEntity.toDto() = RoutineDto(id, coachId, clienteId, clienteNombre, nombre, objetivo, diasSemana)
-fun RoutineDto.toEntity() = RoutineEntity(id, coachId, clienteId, clienteNombre, nombre, objetivo, diasSemana)
+fun RoutineEntity.toDto() = RoutineDto(id, coachId, clienteId, clienteNombre, nombre, grupoMuscular, objetivo, diasSemana)
+fun RoutineDto.toEntity() = RoutineEntity(id, coachId, clienteId, clienteNombre, nombre, grupoMuscular, objetivo, diasSemana)
 
 fun RoutineExerciseEntity.toDto() = RoutineExerciseDto(id, routineId, nombre, grupoMuscular, series, repeticiones, pesoSugeridoKg, completado)
 fun RoutineExerciseDto.toEntity() = RoutineExerciseEntity(id, routineId, nombre, grupoMuscular, series, repeticiones, pesoSugeridoKg, completado)
 
-fun ProgressNoteEntity.toDto() = ProgressNoteDto(id, userId, titulo, pesoCorporalKg, pesoLevantadoKg, repeticionesLogradas, comentario, fecha)
-fun ProgressNoteDto.toEntity() = ProgressNoteEntity(id, userId, titulo, pesoCorporalKg, pesoLevantadoKg, repeticionesLogradas, comentario, fecha)
+fun ProgressNoteEntity.toDto() = ProgressNoteDto(
+    id = id,
+    userId = userId,
+    titulo = titulo,
+    pesoCorporalKg = pesoCorporalKg,
+    pesoLevantadoKg = pesoLevantadoKg,
+    repeticionesLogradas = repeticionesLogradas,
+    indiceGrasaPct = indiceGrasaPct,
+    masaMuscularKg = masaMuscularKg,
+    imc = imc,
+    comentario = comentario,
+    fecha = fecha
+)
+fun ProgressNoteDto.toEntity() = ProgressNoteEntity(
+    id = id,
+    userId = userId,
+    titulo = titulo,
+    pesoCorporalKg = pesoCorporalKg,
+    pesoLevantadoKg = pesoLevantadoKg,
+    repeticionesLogradas = repeticionesLogradas,
+    indiceGrasaPct = indiceGrasaPct,
+    masaMuscularKg = masaMuscularKg,
+    imc = imc,
+    comentario = comentario,
+    fecha = fecha
+)
 
 fun ProductEntity.toDto() = ProductDto(id, nombre, categoria, precio, stock)
 fun ProductDto.toEntity() = ProductEntity(id, nombre, categoria, precio, stock)

@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MembershipDao {
+    @Query("SELECT COUNT(*) FROM services")
+    suspend fun countServices(): Int
+
     @Query("SELECT * FROM services ORDER BY nombre ASC")
     fun observeAllServices(): Flow<List<ServiceEntity>>
 
@@ -42,6 +45,9 @@ interface MembershipDao {
 
     @Query("SELECT * FROM attendances WHERE userId = :userId ORDER BY id DESC")
     fun observeAttendancesByUser(userId: Int): Flow<List<AttendanceEntity>>
+
+    @Query("SELECT * FROM attendances WHERE userId = :userId ORDER BY id DESC")
+    suspend fun getAttendancesByUserOnce(userId: Int): List<AttendanceEntity>
 
     @Query("SELECT * FROM attendances ORDER BY id DESC")
     fun observeAllAttendances(): Flow<List<AttendanceEntity>>

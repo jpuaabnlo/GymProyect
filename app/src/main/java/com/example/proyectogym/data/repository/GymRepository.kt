@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface GymRepository {
     suspend fun syncFromRemote()
+    suspend fun seedInitialDataIfEmpty()
 
     suspend fun login(email: String, password: String): UserEntity?
     fun observeUserById(id: Int): Flow<UserEntity?>
@@ -40,9 +41,11 @@ interface GymRepository {
     fun observeAttendancesByUser(userId: Int): Flow<List<AttendanceEntity>>
     fun observeAllAttendances(): Flow<List<AttendanceEntity>>
     suspend fun insertAttendance(attendance: AttendanceEntity): Long
+    suspend fun registerAttendanceWithCooldown(attendance: AttendanceEntity): AttendanceRegistrationResult
 
     fun observeAllRoutines(): Flow<List<RoutineEntity>>
     fun observeRoutinesByCoach(coachId: Int): Flow<List<RoutineEntity>>
+    fun observeRoutinesForClient(clienteId: Int): Flow<List<RoutineEntity>>
     fun observeActiveRoutineForClient(clienteId: Int): Flow<RoutineEntity?>
     suspend fun getRoutineById(routineId: Int): RoutineEntity?
     suspend fun insertRoutine(routine: RoutineEntity): Long
