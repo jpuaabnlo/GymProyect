@@ -2,10 +2,12 @@ package com.example.proyectogym.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.proyectogym.R
 import com.example.proyectogym.data.local.entity.UserEntity
 import com.example.proyectogym.data.remote.toEntity
 import com.example.proyectogym.data.repository.GymRepository
 import com.example.proyectogym.data.repository.RemoteGymRepository
+import com.example.proyectogym.ui.components.UiMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +21,8 @@ data class LoginUiState(
     val email: String = "",
     val password: String = "",
     val recordarSesion: Boolean = true,
-    val mensajeError: String? = null,
-    val mensajeInfo: String? = null,
+    val mensajeError: UiMessage? = null,
+    val mensajeInfo: UiMessage? = null,
     val usuariosRegistrados: List<UserEntity> = emptyList()
 )
 
@@ -60,7 +62,7 @@ class LoginViewModel(
         val clave = _uiState.value.password.trim()
 
         if (correo.isBlank() || clave.isBlank()) {
-            _uiState.update { it.copy(mensajeError = "Ingresa tu correo y contraseña") }
+            _uiState.update { it.copy(mensajeError = UiMessage(R.string.login_error_empty)) }
             return
         }
 
@@ -74,7 +76,7 @@ class LoginViewModel(
                 _uiState.update { it.copy(mensajeError = null) }
                 onLoginExitoso(usuario)
             } else {
-                _uiState.update { it.copy(mensajeError = "Credenciales incorrectas.") }
+                _uiState.update { it.copy(mensajeError = UiMessage(R.string.login_error_invalid)) }
             }
         }
     }
@@ -91,7 +93,7 @@ class LoginViewModel(
         val claveLimpia = password.trim()
 
         if (nombreLimpio.isBlank() || correoLimpio.isBlank() || claveLimpia.isBlank()) {
-            _uiState.update { it.copy(mensajeError = "Completa nombre, correo y contraseña para registrarte") }
+            _uiState.update { it.copy(mensajeError = UiMessage(R.string.login_error_register_fields)) }
             return
         }
 
@@ -102,7 +104,7 @@ class LoginViewModel(
                 it.email.equals(correoLimpio, ignoreCase = true)
             }
             if (existeRemoto || existeLocal) {
-                _uiState.update { it.copy(mensajeError = "Ya existe una cuenta con ese correo") }
+                _uiState.update { it.copy(mensajeError = UiMessage(R.string.login_error_email_exists)) }
                 return@launch
             }
 
@@ -122,7 +124,7 @@ class LoginViewModel(
                     email = correoLimpio,
                     password = claveLimpia,
                     mensajeError = null,
-                    mensajeInfo = "Cuenta registrada para $nombreLimpio. Ya puedes iniciar sesión."
+                    mensajeInfo = UiMessage(R.string.login_info_registered, listOf(nombreLimpio))
                 )
             }
         }
@@ -130,7 +132,7 @@ class LoginViewModel(
 
     fun recuperarContrasena(correoRecuperacion: String) {
         if (correoRecuperacion.isBlank()) {
-            _uiState.update { it.copy(mensajeError = "Escribe tu correo para recuperar tu contraseña") }
+            _uiState.update { it.copy(mensajeError = UiMessage(R.string.login_error_recover_empty)) }
             return
         }
         viewModelScope.launch {
@@ -141,13 +143,21 @@ class LoginViewModel(
             if (encontrado != null) {
                 _uiState.update {
                     it.copy(
-                        mensajeInfo = "Cuenta de ${encontrado.nombre}: contraseña registrada ${encontrado.password}",
+                        mensajeInfo = UiMessage(
+                            R.string.login_info_recover_found,
+                            listOf(encontrado.nombre, encontrado.password)
+                        ),
                         mensajeError = null
                     )
                 }
             } else {
                 _uiState.update {
-                    it.copy(mensajeError = "No existe ninguna cuenta con el correo $correoRecuperacion")
+                    it.copy(
+                        mensajeError = UiMessage(
+                            R.string.login_error_recover_not_found,
+                            listOf(correoRecuperacion)
+                        )
+                    )
                 }
             }
         }

@@ -11,6 +11,7 @@ data class RoutineEntity(
     val clienteId: Int? = null,
     val clienteNombre: String = "Sin asignar",
     val nombre: String,
+    val grupoMuscular: String = "",
     val objetivo: String,
     val diasSemana: String
 )

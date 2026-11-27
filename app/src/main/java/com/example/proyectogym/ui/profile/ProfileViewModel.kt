@@ -2,11 +2,13 @@ package com.example.proyectogym.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.proyectogym.R
 import com.example.proyectogym.data.local.entity.AttendanceEntity
 import com.example.proyectogym.data.local.entity.MediaAssetEntity
 import com.example.proyectogym.data.local.entity.NotificationEntity
 import com.example.proyectogym.data.local.entity.UserEntity
 import com.example.proyectogym.data.repository.GymRepository
+import com.example.proyectogym.ui.components.UiMessage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +29,9 @@ data class ProfileUiState(
     val asistencias: List<AttendanceEntity> = emptyList(),
     val notificaciones: List<NotificationEntity> = emptyList(),
     val archivosMultimedia: List<MediaAssetEntity> = emptyList(),
-    val mensajeGuardado: String? = null
+    val errorNombre: UiMessage? = null,
+    val errorTelefono: UiMessage? = null,
+    val mensajeGuardado: UiMessage? = null
 )
 
 class ProfileViewModel(
@@ -56,12 +60,13 @@ class ProfileViewModel(
             }.collect { (user, attendances, extra) ->
                 val (notifications, media) = extra
                 _uiState.update { current ->
+                    val primerCarga = current.usuario == null && user != null
                     current.copy(
                         usuario = user,
-                        nombre = if (current.usuario == null && user != null) user.nombre else current.nombre,
-                        telefono = if (current.usuario == null && user != null) user.telefono else current.telefono,
-                        objetivo = if (current.usuario == null && user != null) user.objetivo else current.objetivo,
-                        horarioHabitual = if (current.usuario == null && user != null) user.horarioHabitual else current.horarioHabitual,
+                        nombre = if (primerCarga) user!!.nombre else current.nombre,
+                        telefono = if (primerCarga) user!!.telefono.filter(Char::isDigit).take(10) else current.telefono,
+                        objetivo = if (primerCarga) user!!.objetivo else current.objetivo,
+                        horarioHabitual = if (primerCarga) user!!.horarioHabitual else current.horarioHabitual,
                         asistencias = attendances,
                         notificaciones = notifications,
                         archivosMultimedia = media
@@ -72,11 +77,13 @@ class ProfileViewModel(
     }
 
     fun onNombreChange(valor: String) {
-        _uiState.update { it.copy(nombre = valor, mensajeGuardado = null) }
+        val limpio = valor.filter { !it.isDigit() }
+        _uiState.update { it.copy(nombre = limpio, errorNombre = null, mensajeGuardado = null) }
     }
 
     fun onTelefonoChange(valor: String) {
-        _uiState.update { it.copy(telefono = valor, mensajeGuardado = null) }
+        val digitos = valor.filter(Char::isDigit).take(10)
+        _uiState.update { it.copy(telefono = digitos, errorTelefono = null, mensajeGuardado = null) }
     }
 
     fun onObjetivoChange(valor: String) {
@@ -85,19 +92,42 @@ class ProfileViewModel(
 
     fun guardarCambiosPerfil() {
         val actual = _uiState.value.usuario ?: return
+        val nombreLimpio = _uiState.value.nombre.trim()
+        val telefonoLimpio = _uiState.value.telefono.trim()
+
+        if (nombreLimpio.isBlank()) {
+            _uiState.update { it.copy(errorNombre = UiMessage(R.string.profile_error_name_required)) }
+            return
+        }
+        if (telefonoLimpio.length != 10 || !telefonoLimpio.all(Char::isDigit)) {
+            _uiState.update { it.copy(errorTelefono = UiMessage(R.string.profile_error_phone_10)) }
+            return
+        }
+
         viewModelScope.launch {
             val actualizado = actual.copy(
-                nombre = _uiState.value.nombre.trim().ifBlank { actual.nombre },
-                telefono = _uiState.value.telefono.trim(),
+                nombre = nombreLimpio,
+                telefono = telefonoLimpio,
                 objetivo = _uiState.value.objetivo.trim(),
                 horarioHabitual = _uiState.value.horarioHabitual
             )
             gymRepository.updateUser(actualizado)
-            _uiState.update { it.copy(usuario = actualizado, mensajeGuardado = "Perfil actualizado") }
+            _uiState.update {
+                it.copy(
+                    usuario = actualizado,
+                    errorNombre = null,
+                    errorTelefono = null,
+                    mensajeGuardado = UiMessage(R.string.profile_updated_msg)
+                )
+            }
         }
     }
 
-    fun guardarHoraRecordatorio(hora: String) {
+    fun guardarHoraRecordatorio(
+        hora: String,
+        tituloNotificacion: String,
+        mensajeNotificacion: String
+    ) {
         val actual = _uiState.value.usuario ?: return
         val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
@@ -108,8 +138,8 @@ class ProfileViewModel(
             gymRepository.insertNotification(
                 NotificationEntity(
                     userId = actual.id,
-                    titulo = "Recordatorio de entrenamiento",
-                    mensaje = "Entrenamiento programado a las $hora",
+                    titulo = tituloNotificacion,
+                    mensaje = mensajeNotificacion,
                     horaProgramada = hora,
                     tipo = "RECORDATORIO_ENTRENO",
                     activa = true,
@@ -120,7 +150,7 @@ class ProfileViewModel(
             _uiState.update {
                 it.copy(
                     horarioHabitual = hora,
-                    mensajeGuardado = "Recordatorio guardado para las $hora"
+                    mensajeGuardado = UiMessage(R.string.profile_reminder_saved_msg, listOf(hora))
                 )
             }
         }
@@ -132,7 +162,7 @@ class ProfileViewModel(
         }
     }
 
-    fun agregarFotoMultimediaReferencia(descripcion: String) {
+    fun guardarFotoPerfilUri(uriString: String, descripcion: String) {
         val actual = _uiState.value.usuario ?: return
         val hoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         viewModelScope.launch {
@@ -140,13 +170,15 @@ class ProfileViewModel(
                 MediaAssetEntity(
                     ownerId = actual.id,
                     ownerType = "PERFIL",
-                    uriLocal = "content://com.example.proyectogym/perfil_${System.currentTimeMillis()}.jpg",
-                    mimeType = "image/jpeg",
-                    descripcion = descripcion.ifBlank { "Foto de perfil actualizada" },
+                    uriLocal = uriString,
+                    mimeType = "image/*",
+                    descripcion = descripcion.ifBlank { "Foto de perfil" },
                     fechaRegistro = hoy
                 )
             )
-            _uiState.update { it.copy(mensajeGuardado = "Foto de perfil registrada") }
+            _uiState.update {
+                it.copy(mensajeGuardado = UiMessage(R.string.profile_photo_saved_msg))
+            }
         }
     }
 }

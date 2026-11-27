@@ -19,6 +19,9 @@ interface RoutineDao {
     @Query("SELECT * FROM routines WHERE coachId = :coachId ORDER BY id DESC")
     fun observeRoutinesByCoach(coachId: Int): Flow<List<RoutineEntity>>
 
+    @Query("SELECT * FROM routines WHERE clienteId = :clienteId ORDER BY id DESC")
+    fun observeRoutinesForClient(clienteId: Int): Flow<List<RoutineEntity>>
+
     @Query("SELECT * FROM routines WHERE clienteId = :clienteId ORDER BY id DESC LIMIT 1")
     fun observeActiveRoutineForClient(clienteId: Int): Flow<RoutineEntity?>
 
