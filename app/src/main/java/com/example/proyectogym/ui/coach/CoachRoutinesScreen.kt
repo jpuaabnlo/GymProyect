@@ -1,35 +1,45 @@
 package com.example.proyectogym.ui.coach
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.proyectogym.R
 import com.example.proyectogym.ui.AppViewModelProvider
+import com.example.proyectogym.ui.components.asString
+import com.example.proyectogym.ui.utils.LocalWindowWidthSizeClass
 
 @Composable
 fun CoachRoutinesScreen(
     coachId: Int,
     onCrearRutina: () -> Unit,
     onEditarRutina: (Int) -> Unit,
+    windowSize: WindowWidthSizeClass = LocalWindowWidthSizeClass.current,
     viewModel: CoachViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     LaunchedEffect(coachId) {
@@ -38,77 +48,151 @@ fun CoachRoutinesScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
-    LazyColumn(
+    val gridColumns = when (windowSize) {
+        WindowWidthSizeClass.Compact -> GridCells.Fixed(1)
+        WindowWidthSizeClass.Medium -> GridCells.Fixed(2)
+        else -> GridCells.Adaptive(minSize = 300.dp)
+    }
+
+    LazyVerticalGrid(
+        columns = gridColumns,
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Column {
                 Text(
-                    text = "Mis rutinas",
+                    text = stringResource(R.string.coach_routines_title),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Button(
-                    onClick = {
-                        viewModel.prepararNuevaRutina()
-                        onCrearRutina()
-                    }
-                ) {
-                    Text("+ Nueva rutina")
-                }
+                Text(
+                    text = stringResource(R.string.coach_routines_select_client_subtitle),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
-            Text(
-                text = "Crea, edita, elimina y asigna rutinas personalizadas a tus clientes.",
-                style = MaterialTheme.typography.bodyMedium
-            )
         }
 
-        if (uiState.rutinas.isEmpty()) {
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+        if (uiState.mensajeFeedback != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
-                        text = "No hay rutinas creadas todavía. Presiona '+ Nueva rutina'.",
+                        text = uiState.mensajeFeedback!!.asString(),
+                        modifier = Modifier.padding(12.dp),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        if (uiState.clientes.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Text(
+                        text = stringResource(R.string.coach_routines_no_assigned_clients),
                         modifier = Modifier.padding(16.dp)
                     )
                 }
             }
         } else {
-            items(uiState.rutinas, key = { it.id }) { rutina ->
+            items(uiState.clientes, key = { it.id }) { cliente ->
+                val rutinasCliente = uiState.rutinas.filter { it.clienteId == cliente.id }
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            viewModel.prepararNuevaRutinaParaCliente(cliente)
+                            onCrearRutina()
+                        },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(text = rutina.nombre, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = "Objetivo: ${rutina.objetivo} · Días: ${rutina.diasSemana}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Cliente asignado: ${rutina.clienteNombre}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = cliente.nombre,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.coach_client_goal,
+                                        cliente.objetivo.ifBlank { "General" }
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Button(
                                 onClick = {
-                                    viewModel.cargarRutinaParaEditar(rutina.id)
-                                    onEditarRutina(rutina.id)
+                                    viewModel.prepararNuevaRutinaParaCliente(cliente)
+                                    onCrearRutina()
                                 }
                             ) {
-                                Text("Editar")
+                                Text(stringResource(R.string.coach_new_routine_btn))
                             }
-                            TextButton(onClick = { viewModel.eliminarRutina(rutina) }) {
-                                Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                        }
+
+                        if (rutinasCliente.isNotEmpty()) {
+                            HorizontalDivider()
+                            Text(
+                                text = stringResource(R.string.coach_client_existing_routines, rutinasCliente.size),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            rutinasCliente.forEach { rutina ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = rutina.nombre,
+                                            fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            text = "${rutina.grupoMuscular.ifBlank { "General" }} · ${rutina.objetivo} · ${rutina.diasSemana}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Row {
+                                        TextButton(
+                                            onClick = {
+                                                viewModel.cargarRutinaParaEditar(rutina.id)
+                                                onEditarRutina(rutina.id)
+                                            }
+                                        ) {
+                                            Text(stringResource(R.string.btn_edit))
+                                        }
+                                        TextButton(onClick = { viewModel.eliminarRutina(rutina) }) {
+                                            Text(
+                                                text = stringResource(R.string.btn_delete),
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
